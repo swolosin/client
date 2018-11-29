@@ -482,7 +482,7 @@ func (s *HybridInboxSource) fetchRemoteInbox(ctx context.Context, uid gregor1.UI
 	}
 
 	numQueued := 0
-	for index, conv := range ib.Inbox.Full().Conversations {
+	for _, conv := range ib.Inbox.Full().Conversations {
 		// Retention policy expunge
 		expunge := conv.GetExpunge()
 		if expunge != nil {
