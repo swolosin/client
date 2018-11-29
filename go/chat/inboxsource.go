@@ -481,15 +481,19 @@ func (s *HybridInboxSource) fetchRemoteInbox(ctx context.Context, uid gregor1.UI
 		return types.Inbox{}, err
 	}
 
+	numQueued := 0
 	for index, conv := range ib.Inbox.Full().Conversations {
 		// Retention policy expunge
 		expunge := conv.GetExpunge()
 		if expunge != nil {
 			s.G().ConvSource.Expunge(ctx, conv.GetConvID(), uid, *expunge)
 		}
-		// Queue all these convs up to be loaded by the background loader
-		// Only load first 100 so we don't get the conv loader too backed up
-		if index < 100 {
+		// Queue all these convs up to be loaded by the background loader. Only
+		// load first 100 conversations the user is ACTIVE in so we don't get
+		// the conv loader too backed up
+		if numQueued < 100 && (conv.HasMemberStatus(chat1.ConversationMemberStatus_ACTIVE) ||
+			conv.HasMemberStatus(chat1.ConversationMemberStatus_PREVIEW)) {
+			numQueued++
 			job := types.NewConvLoaderJob(conv.GetConvID(), nil /* query */, &chat1.Pagination{Num: 50},
 				types.ConvLoaderPriorityMedium, newConvLoaderPagebackHook(s.G(), 0, 5))
 			if err := s.G().ConvLoader.Queue(ctx, job); err != nil {
