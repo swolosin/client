@@ -4,9 +4,11 @@ Debian/Ubuntu:
 To build a package for debian from a local branch in client (on amd64):
 
     cd $GOPATH/src/github.com/keybase/client/packaging/linux
-    docker build -t keybase_packaging_v14 .
+    # Run the following on Arch: see https://github.com/docker/for-linux/issues/480
+    # echo N | sudo tee /sys/module/overlay/parameters/metacopy
+    docker build -t keybase_packaging_v16 .
     mkdir /var/tmp/keybase_build_work
-    docker run -v /var/tmp/keybase_build_work:/root -v $GOPATH/src/github.com/keybase/client:/CLIENT:ro -v $GOPATH/src/github.com/keybase/kbfs:/KBFS:ro  -e NOWAIT -ti keybase_packaging_v14 bash
+    docker run -v /var/tmp/keybase_build_work:/root -v $GOPATH/src/github.com/keybase/client:/CLIENT:ro -v $GOPATH/src/github.com/keybase/kbfs:/KBFS:ro  -e NOWAIT -ti keybase_packaging_v16 bash
 
 Then, from inside the docker environment:
 
