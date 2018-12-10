@@ -38,10 +38,10 @@ cat > "$repo_root/repo/conf/distributions" << END
 Codename: stable
 Components: main
 Architectures: i386 amd64
-SignWith: $code_signing_fingerprint
 END
+# SignWith: $code_signing_fingerprint
 
-for debian_arch in amd64 i386 ; do
+for debian_arch in amd64 ; do
   echo Creating the Debian repo hierarchy.
   # Create/update the Debian repository hierarchy. The layout of this is
   # described here: https://wiki.debian.org/RepositoryFormat We use the
@@ -59,8 +59,8 @@ for debian_arch in amd64 i386 ; do
   # Add a standalone signature file, for user convenience. Other packaging
   # steps will pick this up and copy it around.
   code_signing_fingerprint="$(cat "$here/../code_signing_fingerprint")"
-  gpg --detach-sign --armor --use-agent --local-user "$code_signing_fingerprint" \
-      -o "$repo_root/$package_path.sig" "$repo_root/$package_path"
+  # gpg --detach-sign --armor --use-agent --local-user "$code_signing_fingerprint" \
+  #     -o "$repo_root/$package_path.sig" "$repo_root/$package_path"
 
   # Update the latest pointer.
   ln -sf "$package_path" "$repo_root/$name-latest-$debian_arch.deb"

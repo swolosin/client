@@ -54,7 +54,7 @@ fi
 # Copy the RPM files into our repo. This is flatter than the way Debian's
 # reprepro does things, and it's allowed to contain multiple copies of the same
 # package.
-for arch in i386 x86_64 ; do
+for arch in x86_64 ; do
   rpmfile="$(ls "$build_root/rpm/$arch/RPMS/$arch"/*.rpm)"  # keybase, kdstage, or kbdev
   rpmname="$(basename "$rpmfile")"
   destdir="$repo_root/repo/$arch"
@@ -69,19 +69,19 @@ for arch in i386 x86_64 ; do
   #
   # The `setsid` and `/dev/null` bits are both required to suppress the no-op
   # password prompt that appears despite the agent configs.
-  echo "Signing '$rpmcopy'..."
-  setsid -w rpm \
-   --define "_gpg_name $code_signing_fingerprint"  \
-   --define '_signature gpg' \
-   --define '__gpg_check_password_cmd /bin/true' \
-   --define '__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u "%{_gpg_name}" -sbo %{__signature_filename} %{__plaintext_filename}' \
-   --addsign "$rpmcopy" < /dev/null
+  # echo "Signing '$rpmcopy'..."
+  # setsid -w rpm \
+  #  --define "_gpg_name $code_signing_fingerprint"  \
+  #  --define '_signature gpg' \
+  #  --define '__gpg_check_password_cmd /bin/true' \
+  #  --define '__gpg_sign_cmd %{__gpg} gpg --batch --no-verbose --no-armor --use-agent --no-secmem-warning -u "%{_gpg_name}" -sbo %{__signature_filename} %{__plaintext_filename}' \
+  #  --addsign "$rpmcopy" < /dev/null
 
   # Add a standalone signature file, for user convenience. Other packaging
   # steps will pick this up and copy it around.
   code_signing_fingerprint="$(cat "$here/../code_signing_fingerprint")"
-  gpg --detach-sign --armor --use-agent --local-user "$code_signing_fingerprint" \
-      -o "$rpmcopy.sig" "$rpmcopy"
+  # gpg --detach-sign --armor --use-agent --local-user "$code_signing_fingerprint" \
+  #     -o "$rpmcopy.sig" "$rpmcopy"
 
   # Update the latest pointer. Even though the RPM repo is split by
   # architecture, put these links at the root of it with the arch in the
