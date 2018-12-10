@@ -15,6 +15,7 @@ Then, from inside the docker environment:
     git clone https://github.com/keybase/kbfs.git kbfs --reference /KBFS
     cd client
     git remote add localclient /CLIENT
+    git fetch localclient
     git checkout localclient/<NAME_OF_LOCAL_BRANCH_TO_TEST>
     KEYBASE_SKIP_32_BIT=1 packaging/linux/build_binaries.sh prerelease /root/build
     packaging/linux/deb/package_binaries.sh /root/build
