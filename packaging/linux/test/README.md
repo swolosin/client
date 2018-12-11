@@ -56,6 +56,36 @@ After that you can upgrade it:
     cd /root/build/deb/amd64
     dpkg -i `ls -tr *.deb | tail -1`
 
+
+##### Local repo
+
+If you want to try upgrading with `apt-get`, you need to edit the apt list.
+Note that reinstalling will overwrite this change unless you `sudo touch
+/etc/default/keybase` first. Note that for this to work, you need to run
+`packaging/linux/deb/layout_repo.sh /root/build` to create the repo (and
+comment out codesigning while testing). You also need to `rm -r /root/build/deb
+/root/build/deb_repo` in between `layout_repo`s.
+
+```
+# before
+root@813a2fbff4a5:/# cat /etc/apt/sources.list.d/keybase.list
+### THIS FILE IS AUTOMATICALLY CONFIGURED ###
+# You may comment out this entry, but any other modifications may be lost.
+deb http://prerelease.keybase.io/deb stable main
+
+# after
+root@813a2fbff4a5:/# cat /etc/apt/sources.list.d/keybase.list
+### THIS FILE IS AUTOMATICALLY CONFIGURED ###
+# You may comment out this entry, but any other modifications may be lost.
+deb [trusted=yes] file:/root/build/deb_repo/repo stable main
+
+root@813a2fbff4a5:/# apt-get update
+root@813a2fbff4a5:/# apt-get upgrade keybase
+...
+The following packages will be upgraded:
+  keybase
+```
+
 Ubuntu with systemd:
 =======
 
