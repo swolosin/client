@@ -94,5 +94,5 @@ build_one_architecture() {
 export debian_arch=amd64
 build_one_architecture
 
-export debian_arch=i386
-build_one_architecture
+# export debian_arch=i386
+# build_one_architecture

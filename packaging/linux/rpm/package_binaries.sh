@@ -106,16 +106,16 @@ build_one_architecture() {
   rpmbuild --define "_topdir $dest" --target "$rpm_arch" -bb "$spec"
 }
 
-export rpm_arch=i386
-export debian_arch=i386
-# On Fedora, it would be more correct to require "libXScrnSaver",
-# which provides libXss.so. Unfortunately that doesn't work on
-# OpenSUSE. This is the most compatible set of dependencies we've
-# found.  "psmisc" provides "killall", which is used in run_keybase.
-# "initscripts" provides "service", which is used to start atd in the
-# post-install.
-dependencies="Requires: at, fuse, libXss.so.1, /sbin/service, psmisc"
-build_one_architecture
+# export rpm_arch=i386
+# export debian_arch=i386
+# # On Fedora, it would be more correct to require "libXScrnSaver",
+# # which provides libXss.so. Unfortunately that doesn't work on
+# # OpenSUSE. This is the most compatible set of dependencies we've
+# # found.  "psmisc" provides "killall", which is used in run_keybase.
+# # "initscripts" provides "service", which is used to start atd in the
+# # post-install.
+# dependencies="Requires: at, fuse, libXss.so.1, /sbin/service, psmisc"
+# build_one_architecture
 
 export rpm_arch=x86_64
 export debian_arch=amd64
