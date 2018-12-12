@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/keybase/client/go/chat/globals"
 	"github.com/keybase/client/go/chat/storage"
 	"github.com/keybase/client/go/chat/types"
 	"github.com/keybase/client/go/kbtest"
-	"github.com/keybase/client/go/libkb"
 	"github.com/keybase/client/go/protocol/chat1"
 	"github.com/keybase/client/go/protocol/gregor1"
 	"github.com/keybase/client/go/protocol/keybase1"
@@ -374,11 +374,11 @@ func TestSyncerNeverJoined(t *testing.T) {
 		consumeNewMsgRemote(t, listener1, chat1.MessageType_SYSTEM)
 		consumeNewMsgRemote(t, listener2, chat1.MessageType_SYSTEM)
 
-		doAuthedSync := func(g *libkb.GlobalContext, syncer types.Syncer, ri chat1.RemoteInterface, uid gregor1.UID) {
-			nist, err := g.ActiveDevice.NIST(context.TODO())
+		doAuthedSync := func(ctx context.Context, g *globals.Context, syncer types.Syncer, ri chat1.RemoteInterface, uid gregor1.UID) {
+			nist, err := g.ExternalG().ActiveDevice.NIST(context.TODO())
 			require.NoError(t, err)
 			sessionToken := gregor1.SessionToken(nist.Token().String())
-			res, err := ri.SyncAll(context.TODO(), chat1.SyncAllArg{
+			res, err := ri.SyncAll(ctx, chat1.SyncAllArg{
 				Uid:     uid,
 				Session: sessionToken,
 			})
@@ -386,7 +386,10 @@ func TestSyncerNeverJoined(t *testing.T) {
 			require.NoError(t, syncer.Sync(context.TODO(), ri, uid, &res.Chat))
 		}
 
-		doAuthedSync(g1.ExternalG(), syncer1, ctc1.ri, uid1)
+		// Put our version into the context so the server knows we
+		// understand NEVER_JOINED
+		ctx := Context(context.TODO(), g1, keybase1.TLFIdentifyBehavior_CHAT_GUI, nil, nil)
+		doAuthedSync(ctx, g1, syncer1, ctc1.ri, uid1)
 		select {
 		case sres := <-listener1.inboxSynced:
 			typ, err := sres.SyncType()
@@ -394,12 +397,16 @@ func TestSyncerNeverJoined(t *testing.T) {
 			require.Equal(t, chat1.SyncInboxResType_INCREMENTAL, typ)
 			require.Len(t, sres.Incremental().Items, 2)
 			require.Equal(t, convID.String(), sres.Incremental().Items[0].Conv.ConvID)
+			require.Equal(t, chat1.ConversationMemberStatus_ACTIVE, sres.Incremental().Items[0].Conv.MemberStatus)
 			require.Equal(t, chanID.String(), sres.Incremental().Items[1].Conv.ConvID)
+			require.Equal(t, chat1.ConversationMemberStatus_ACTIVE, sres.Incremental().Items[1].Conv.MemberStatus)
 		case <-time.After(20 * time.Second):
 			require.Fail(t, "no inbox synced received")
 		}
 
-		doAuthedSync(g2.ExternalG(), syncer2, ctc2.ri, uid2)
+		// simulate an old client that doesn't understand NEVER_JOINED
+		ctx = context.TODO()
+		doAuthedSync(ctx, g2, syncer2, ctc2.ri, uid2)
 		select {
 		case sres := <-listener2.inboxSynced:
 			typ, err := sres.SyncType()
@@ -407,6 +414,19 @@ func TestSyncerNeverJoined(t *testing.T) {
 			require.Equal(t, chat1.SyncInboxResType_INCREMENTAL, typ)
 			require.Len(t, sres.Incremental().Items, 1)
 			require.Equal(t, convID.String(), sres.Incremental().Items[0].Conv.ConvID)
+			require.Equal(t, chat1.ConversationMemberStatus_ACTIVE, sres.Incremental().Items[0].Conv.MemberStatus)
+		case <-time.After(20 * time.Second):
+			require.Fail(t, "no inbox synced received")
+		}
+
+		// New clients get a CLEAR here.
+		ctx = Context(context.TODO(), g2, keybase1.TLFIdentifyBehavior_CHAT_GUI, nil, nil)
+		doAuthedSync(ctx, g2, syncer2, ctc2.ri, uid2)
+		select {
+		case sres := <-listener2.inboxSynced:
+			typ, err := sres.SyncType()
+			require.NoError(t, err)
+			require.Equal(t, chat1.SyncInboxResType_CLEAR, typ)
 		case <-time.After(20 * time.Second):
 			require.Fail(t, "no inbox synced received")
 		}
