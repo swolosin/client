@@ -34,7 +34,7 @@ elif [ "$mode" = "prerelease" ] ; then
   # post_install.sh.
   # lsof used in post_install.sh
   # systemd-container provides machinectl, which is used in post_install.sh
-  dependencies="Depends: libappindicator1, fuse, libgconf-2-4, psmisc, lsof, systemd-container"
+  dependencies="Depends: libappindicator1, fuse, libgconf-2-4, psmisc, lsof, procps"
 elif [ "$mode" = "staging" ] ; then
   # Note: This doesn't exist yet. But we need to be distinct from the
   # production URL, because we're moving to a model where we build a clean repo
