@@ -8,11 +8,13 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/blang/semver"
+	"github.com/keybase/client/go/install"
 	"github.com/keybase/client/go/libkb"
 	keybase1 "github.com/keybase/client/go/protocol/keybase1"
 	"github.com/keybase/go-framed-msgpack-rpc/rpc"
@@ -182,4 +184,68 @@ func FixVersionClash(g *libkb.GlobalContext, cl libkb.CommandLine) (err error) {
 	}
 
 	return err
+}
+
+func WarnOutdatedKBFS(g *libkb.GlobalContext, cl libkb.CommandLine) (err error) {
+	cli, err := GetConfigClient(g)
+	if err != nil {
+		return err
+	}
+
+	extStatus, err := cli.GetExtendedStatus(context.TODO(), 0)
+	if err != nil {
+		return err
+	}
+	var kbfsClientVersion string
+
+	var kbfs *keybase1.ClientDetails
+	if kbfs = getFirstClient(extStatus.Clients, keybase1.ClientType_KBFS); kbfs == nil {
+		g.Log.Debug("| KBFS not running; skip KBFS version check")
+		return nil
+	}
+
+	kbfsClientVersion = kbfs.Version
+	kbfsInstalledVersion, err := install.KBFSBundleVersion(g, "")
+	if err != nil {
+		return err
+	}
+
+	g.Log.Debug("| KBFS version check installed=%s v. client=%s", kbfsInstalledVersion, kbfsClientVersion)
+	kbfsClientSemver, err := semver.Make(kbfsClientVersion)
+	if err != nil {
+		return err
+	}
+
+	kbfsInstalledSemver, err := semver.Make(kbfsInstalledVersion)
+	if err != nil {
+		return err
+	}
+
+	if kbfsClientSemver.GT(kbfsInstalledSemver) {
+		g.Log.Debug("| KBFS client version greater than installed")
+	} else if kbfsClientSemver.EQ(kbfsInstalledSemver) {
+		g.Log.Debug("| KBFS versions check out")
+	} else if kbfsClientSemver.Major < kbfsInstalledSemver.Major {
+		return fmt.Errorf("Unexpected KBFS version clash; client is at v%s, which is significantly *less than* installed at v%s",
+			kbfsClientSemver, kbfsInstalledSemver)
+	} else {
+		g.Log.Warning("KBFS needs to restart; running version %s, but %s installed.", kbfsClientSemver, kbfsInstalledSemver)
+		if runtime.GOOS == "linux" {
+			mountDir, err := g.Env.GetMountDir()
+			if err != nil {
+				return err
+			}
+			if processes := install.LsofMount(mountDir, g.Log); len(processes) > 0 {
+				g.Log.Warning("KBFS currently in use by the following processes:")
+				for _, process := range processes {
+					g.Log.Warning("- pid=%s, cmd=%s", process.PID, process.Command)
+				}
+				g.Log.Warning("Please terminate the above processes and then run 'run_keybase' to restart Keybase services safely.")
+			} else {
+				g.Log.Warning("Run 'run_keybase' to restart Keybase services.")
+			}
+		}
+	}
+
+	return nil
 }

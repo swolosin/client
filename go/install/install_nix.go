@@ -14,13 +14,17 @@ import (
 // IsInUse returns true if the mount is in use. This may be used by the updater
 // to determine if it's safe to apply an update and restart.
 func IsInUse(mountDir string, log Log) bool {
+	return len(LsofMount(mountDir, log)) > 0
+}
+
+func LsofMount(mountDir string, log Log) []lsof.Process {
 	log.Debug("Mount dir: %s", mountDir)
 	if mountDir == "" {
-		return false
+		return nil
 	}
 	if _, serr := os.Stat(mountDir); os.IsNotExist(serr) {
 		log.Debug("%s doesn't exist", mountDir)
-		return false
+		return nil
 	}
 
 	log.Debug("Checking mount (lsof)")
@@ -29,11 +33,8 @@ func IsInUse(mountDir string, log Log) bool {
 		// If there is an error in lsof it's ok to continue
 		// An exit status of 1 means that the mount is not in use, and is
 		// not really an error.
-		// TODO: Remove this when we fix lsof
-		log.Warning("Continuing despite error in lsof: %s", err)
+		log.Debug("Continuing despite error in lsof: %s", err)
+		return nil
 	}
-	if len(processes) != 0 {
-		return true
-	}
-	return false
+	return processes
 }
