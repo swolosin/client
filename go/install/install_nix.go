@@ -17,7 +17,7 @@ func IsInUse(mountDir string, log Log) bool {
 	return len(LsofMount(mountDir, log)) > 0
 }
 
-func LsofMount(mountDir string, log Log) []lsof.Process {
+func LsofMount(mountDir string, log Log) []CommonLsofResult {
 	log.Debug("Mount dir: %s", mountDir)
 	if mountDir == "" {
 		return nil
@@ -36,5 +36,9 @@ func LsofMount(mountDir string, log Log) []lsof.Process {
 		log.Debug("Continuing despite error in lsof: %s", err)
 		return nil
 	}
-	return processes
+	var ret []CommonLsofResult
+	for _, process := range processes {
+		ret = append(ret, CommonLsofResult{process.PID, process.Command})
+	}
+	return ret
 }
