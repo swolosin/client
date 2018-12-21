@@ -356,3 +356,8 @@ func StartUpdateIfNeeded(ctx context.Context, log logger.Logger) error {
 	}
 	return nil
 }
+
+func LsofMount(mountDir string, log Log) []lsof.Process {
+	log.Warn("Cannot use lsof on Windows.")
+	return nil
+}
