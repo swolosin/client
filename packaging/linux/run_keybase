@@ -1,6 +1,7 @@
-#! /usr/bin/env bash
+#!/usr/bin/env bash
 
 set -e -u -o pipefail
+set -x
 
 # This is the script responsible for launching keybase on boot on Linux. A
 # .desktop file will be created by the service on first launch in
@@ -11,6 +12,7 @@ mkdir -p "$runtime_dir"
 logdir="${XDG_CACHE_HOME:-$HOME/.cache}/keybase"
 mkdir -p "$logdir"
 startup_token="$runtime_dir/startup_mode"
+redirector_log="$logdir/keybase.redirector.log"
 
 set_autostart_vars() {
     # To keep the autostart file stable, so that we don't have to stomp on user
@@ -58,11 +60,10 @@ set_empty_mountdir_to_default() {
         keybase config set mountdir "$mountdir"
         keybase config set mountdirdefault "$mountdir"
     fi
-}
 
-set_empty_mountdir_to_default
-mountdir="$(keybase config get -d -b mountdir 2> /dev/null)"
-export KEYBASE_MOUNTDIR=$mountdir
+    mountdir="$(keybase config get -d -b mountdir 2> /dev/null)"
+    export KEYBASE_MOUNTDIR=$mountdir
+}
 
 # Don't make the mountpoint until after unmounting/killing the
 # previous mount, otherwise `mkdir` will fail.
@@ -144,40 +145,26 @@ kill_all() {
   fi
 }
 
-forward_vars() {
-  filename="$1"
-  vars=("${!2}")
-  cat /dev/null > "$filename"
-  for varname in "${vars[@]}" ; do
-      # Include set-but-empty variables but not unset variables.
-      if [ -n "${!varname+x}" ] ; then
-          echo "$varname=${!varname}" >> "$filename"
-      fi
-  done
+run_redirector() {
+  # Only start the root redirector if it hasn't been explicitly disabled.
+  if ! redirector_enabled; then
+    return 0
+  fi
+
+  nohup keybase-redirector /keybase >> "$redirector_log" 2>&1 &
 }
 
-run_redirector() {
+redirector_enabled() {
+  # An older version of post_install.sh could have made a redirector log
+  # here that's owned by root.  If we can't write to it, then just nuke it
+  # and overwrite.
+  if [ -e "$redirector_log" ] && [ ! -w "$redirector_log" ]; then
+    rm -f "$redirector_log"
+  fi
+
   rootConfigFile="/etc/keybase/config.json"
   disableConfigKey="disable-root-redirector"
-
-  disable="false"
-  if [ -r "$rootConfigFile" ] ; then
-    if keybase -c "$rootConfigFile" config get -d "$disableConfigKey" &> /dev/null ; then
-      disable="$(keybase -c "$rootConfigFile" config get -d "$disableConfigKey" 2> /dev/null)"
-    fi
-  fi
-
-  # Only start the root redirector if it hasn't been explicitly disabled.
-  if [ "$disable" != "true" ]; then
-    log="$logdir/keybase.redirector.log"
-    # An older version of post_install.sh could have made a redirector log
-    # here that's owned by root.  If we can't write to it, then just nuke it
-    # and overwrite.
-    if [ -e "$log" -a ! -w "$log" ]; then
-      rm -f "$log"
-    fi
-    nohup keybase-redirector /keybase >> "$log" 2>&1 &
-  fi
+  ! [ -r "$rootConfigFile" ] || ! value=$(keybase -c "$rootConfigFile" config get -d "$disableConfigKey" 2> /dev/null) || ! [ "$value" = "true" ]
 }
 
 start_systemd() {
@@ -185,47 +172,6 @@ start_systemd() {
   # This script is intended to be run after updates, so we need to reload
   # potentially changed unit files.
   systemctl --user daemon-reload
-
-  forwarded_gui_env_vars=(
-      # The autostart file sets this to "hideWindow" to prevent opening the
-      # Keybase main window when the app is autostarted.
-      KEYBASE_START_UI
-      # Some older distros (e.g. Ubuntu 16.04) don't make X session variables
-      # available to user units automatically. Whitelisting them is safer than
-      # dumping the entire environment, even though there's a chance we might
-      # miss something, because some environment variables might contain
-      # passwords or keys. Hopefully this section won't be needed someday.
-      # (Arch Linux doesn't need it today.)
-      DISPLAY
-      XAUTHORITY
-      DBUS_SESSION_BUS_ADDRESS
-      # Arbitrary environment variables from bashrc and similar aren't
-      # automatically available in the systemd session, and users probably
-      # didn't use pam to define their XDG directories. Export them just in
-      # case.
-      XDG_CURRENT_DESKTOP
-      XDG_CACHE_HOME
-      XDG_CONFIG_HOME
-      XDG_DATA_HOME
-      XDG_DOWNLOAD_DIR
-      XDG_RUNTIME_DIR
-      # Other useful GUI variables.
-      CLUTTER_IM_MODULE
-      GTK_IM_MODULE
-      QT_IM_MODULE
-      QT4_IM_MODULE
-      XMODIFIERS
-  )
-  forwarded_service_env_vars=(
-      # Once again, the XDG variables are needed
-      XDG_CACHE_HOME
-      XDG_DATA_HOME
-      XDG_CONFIG_HOME
-      XDG_RUNTIME_DIR
-  )
-  forward_vars "$runtime_dir/keybase.gui.env" forwarded_gui_env_vars[@]
-  forward_vars "$runtime_dir/keybase.env" forwarded_service_env_vars[@]
-  forward_vars "$runtime_dir/keybase.kbfs.env" forwarded_service_env_vars[@]
 
   run_redirector
 
@@ -270,7 +216,16 @@ warn_if_weird_path() {
     fi
 }
 
+show_cryptosquirrel() {
+  # Magical squirrel produced by https://github.com/erkin/ponysay
+  if [ "${KEYBASE_NO_SQUIRREL:-}" != "1" ]; then
+    cat /opt/keybase/crypto_squirrel.txt
+  fi
+}
+
 main() {
+  set_empty_mountdir_to_default
+
   set_autostart_vars
 
   warn_if_weird_path
@@ -291,10 +246,28 @@ main() {
   fi
 
   echo 'Success!'
-  # Magical squirrel produced by https://github.com/erkin/ponysay
-  if [ "${KEYBASE_NO_SQUIRREL:-}" != "1" ]; then
-    cat /opt/keybase/crypto_squirrel.txt
-  fi
+
+  show_cryptosquirrel
 }
 
-main
+run_config_mountdir=""
+run_redirector_enabled=""
+while getopts ":mr" opt; do
+  case "${opt}" in
+    m) run_config_mountdir=1
+       ;;
+    r) run_redirector_enabled=1
+       ;;
+    \?) echo "Invalid arguments to run_keybase."
+        exit 1
+        ;;
+  esac
+done
+
+if [ -n "$run_config_mountdir" ]; then
+    set_empty_mountdir_to_default
+elif [ -n "$run_redirector_enabled" ]; then
+    redirector_enabled
+else
+    main
+fi

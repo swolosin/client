@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# This script passes in environment variables useful to Keybase services
+# Whenever these variables change, the user should run `systemctl daemon-reload`
+# to refresh the generated environment.
+
+# * This section is for the Keybase GUI
+# The autostart file sets this to "hideWindow" to prevent opening the
+# Keybase main window when the app is autostarted.
+echo KEYBASE_START_UI="$KEYBASE_START_UI"
+
+# * This section is for the Keybase GUI
+# This is for the system tray icon in new versions of Ubuntu that don't use Unity
+# See https://github.com/electron/electron/issues/10887
+echo XDG_CURRENT_DESKTOP="$XDG_CURRENT_DESKTOP"
+
+# * This section is for the Keybase GUI
+# Some older distros (e.g. Ubuntu 16.04) don't make X session variables
+# available to user units automatically. Whitelisting them is safer than
+# dumping the entire environment, even though there's a chance we might
+# miss something, because some environment variables might contain
+# passwords or keys. Hopefully this section won't be needed someday.
+# (Arch Linux doesn't need it today.)
+# See: graphical-session.target.
+echo DISPLAY="$DISPLAY"
+echo XAUTHORITY="$XAUTHORITY"
+echo DBUS_SESSION_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS"
+
+# * This section is for the Keybase GUI
+# The following enable CJK and other input methods
+# See https://github.com/keybase/client/issues/9861
+echo CLUTTER_IM_MODULE="$CLUTTER_IM_MODULE"
+echo GTK_IM_MODULE="$GTK_IM_MODULE"
+echo QT_IM_MODULE="$QT_IM_MODULE"
+echo QT4_IM_MODULE="$QT4_IM_MODULE"
+echo XMODIFIERS="$XMODIFIERS"
+
+# * This section is for the Keybase GUI
+# Arbitrary environment variables from bashrc and similar aren't
+# automatically available in the systemd session, and users probably
+# didn't use pam to define their XDG directories. Export them just in
+# case.
+echo XDG_DOWNLOAD_DIR="$XDG_DOWNLOAD_DIR"
+
+# * This section is for the service, KBFS, and the Keybase GUI
+echo XDG_CACHE_HOME="$XDG_CACHE_HOME"
+echo XDG_CONFIG_HOME="$XDG_CONFIG_HOME"
+echo XDG_DATA_HOME="$XDG_DATA_HOME"
+echo XDG_RUNTIME_DIR="$XDG_RUNTIME_DIR"

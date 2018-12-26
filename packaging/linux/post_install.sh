@@ -143,3 +143,8 @@ fi
 if which gtk-update-icon-cache &> /dev/null ; then
   gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor
 fi
+
+# Reload systemd unit files in case they have changed
+if command -v systemctl &> /dev/null; then
+    systemctl --user daemon-reload
+fi
