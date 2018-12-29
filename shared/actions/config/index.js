@@ -252,7 +252,7 @@ const startLogoutHandshake = state =>
 // stuff to trigger this due to a timeout if there's no listeners or something
 function* maybeDoneWithLogoutHandshake(state) {
   if (state.config.logoutHandshakeWaiters.size <= 0) {
-    yield* Saga.callPromise(RPCTypes.loginLogoutRpcPromise)
+    yield* Saga.callPromise(RPCTypes.loginLogoutRpcPromise, {force: false})
   }
 }
 
@@ -323,7 +323,10 @@ const handleAppLink = (_, action) => {
   const url = new URL(action.payload.link)
   const username = Constants.urlToUsername(url)
   if (username) {
-    return [RouteTreeGen.createSwitchTo({path: [Tabs.profileTab]}), ProfileGen.createShowUserProfile({username})]
+    return [
+      RouteTreeGen.createSwitchTo({path: [Tabs.profileTab]}),
+      ProfileGen.createShowUserProfile({username}),
+    ]
   }
 }
 

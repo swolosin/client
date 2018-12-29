@@ -162,6 +162,7 @@ const reallySignupOnNoErrors = (state: TypedState) => {
           genPaper: false,
           inviteCode,
           passphrase: passphrase.stringValue(),
+          randomPw: false,
           skipMail: false,
           storeSecret: true,
           username,

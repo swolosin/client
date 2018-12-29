@@ -585,7 +585,7 @@ export type MessageTypes = {|
     outParam: void,
   |},
   'keybase.1.login.logout': {|
-    inParam: void,
+    inParam: $ReadOnly<{|force: Boolean|}>,
     outParam: void,
   |},
   'keybase.1.login.paperKey': {|
